@@ -1,0 +1,19 @@
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdata
+**/*.xcuserdatad/
+xcuserdata/
+
+# SwiftPM
+.build/
+.swiftpm/xcode/package.xcworkspace/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
