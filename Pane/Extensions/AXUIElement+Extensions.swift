@@ -8,7 +8,16 @@
 import ApplicationServices
 import CoreGraphics
 
+// Private API to get CGWindowID directly from an AXUIElement
+@_silgen_name("_AXUIElementGetWindow")
+private func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: inout CGWindowID) -> AXError
+
 extension AXUIElement {
+    var cgWindowID: CGWindowID? {
+        var windowId: CGWindowID = 0
+        let result = _AXUIElementGetWindow(self, &windowId)
+        return result == .success ? windowId : nil
+    }
     var title: String? {
         var value: CFTypeRef?
         let status = AXUIElementCopyAttributeValue(self, kAXTitleAttribute as CFString, &value)

@@ -77,11 +77,7 @@ final class WindowManager: ObservableObject {
 
         logger.debug("\(app.localizedName ?? "unknown") has \(axWindows.count) AX windows")
 
-        // Get window list from CGWindowListCopyWindowInfo for window IDs
-        let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-        let appWindowIds = windowList.filter { ($0[kCGWindowOwnerPID as String] as? pid_t) == app.processIdentifier }
-
-        for (index, axWindow) in axWindows.enumerated() {
+        for axWindow in axWindows {
             let title = axWindow.title ?? ""
             let displayTitle = title.isEmpty ? (app.localizedName ?? "Untitled") : title
 
@@ -89,11 +85,8 @@ final class WindowManager: ObservableObject {
             let position = axWindow.position
             let size = axWindow.size
 
-            // Try to get window ID from CGWindowList
-            var windowId: CGWindowID = 0
-            if index < appWindowIds.count, let wid = appWindowIds[index][kCGWindowNumber as String] as? CGWindowID {
-                windowId = wid
-            }
+            // Get window ID directly from AXUIElement
+            let windowId: CGWindowID = axWindow.cgWindowID ?? 0
 
             let screenIndex = getScreenIndex(for: position)
 
