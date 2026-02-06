@@ -18,6 +18,18 @@ extension AXUIElement {
         let result = _AXUIElementGetWindow(self, &windowId)
         return result == .success ? windowId : nil
     }
+
+    @discardableResult
+    func setBoolAttribute(_ attribute: CFString, to value: Bool) -> AXError {
+        let cfValue: CFTypeRef = value ? kCFBooleanTrue : kCFBooleanFalse
+        return AXUIElementSetAttributeValue(self, attribute, cfValue)
+    }
+
+    @discardableResult
+    func performAction(_ action: CFString) -> AXError {
+        return AXUIElementPerformAction(self, action)
+    }
+
     var title: String? {
         var value: CFTypeRef?
         let status = AXUIElementCopyAttributeValue(self, kAXTitleAttribute as CFString, &value)

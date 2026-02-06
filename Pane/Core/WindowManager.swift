@@ -126,20 +126,55 @@ final class WindowManager: ObservableObject {
     }
 
     func focusWindow(_ window: WindowInfo) {
-        // Raise the window
-        AXUIElementPerformAction(window.axElement, kAXRaiseAction as CFString)
+        logger.info("Focusing '\(window.appName)' / '\(window.title)'")
 
-        // Activate the application
-        if let app = NSRunningApplication(processIdentifier: window.pid) {
-            app.activate(options: [.activateIgnoringOtherApps])
-        }
-
-        // Unminimize if needed
+        // Unminimize first so the window can be focused across spaces.
         if window.isMinimized {
-            AXUIElementSetAttributeValue(window.axElement, kAXMinimizedAttribute as CFString, false as CFTypeRef)
+            let status = window.axElement.setBoolAttribute(kAXMinimizedAttribute as CFString, to: false)
+            if status != .success {
+                logger.debug("Failed to unminimize '\(window.title)': \(status.rawValue)")
+            }
         }
 
-        // Update focus order
+        // Activate and unhide app before focusing the specific window.
+        if let app = NSRunningApplication(processIdentifier: window.pid) {
+            if app.isHidden {
+                app.unhide()
+            }
+            let activated = app.activate(options: [.activateIgnoringOtherApps, .activateAllWindows])
+            if !activated {
+                logger.debug("Failed to activate app '\(window.appName)'")
+            }
+        }
+
+        // First try immediately, then retry shortly for space-transition timing.
+        if !bringWindowToFront(window.axElement) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+                guard let self else { return }
+                _ = self.bringWindowToFront(window.axElement)
+            }
+        }
+
+        updateFocusOrder(for: window)
+    }
+
+    private func bringWindowToFront(_ axWindow: AXUIElement) -> Bool {
+        let mainStatus = axWindow.setBoolAttribute(kAXMainAttribute as CFString, to: true)
+        let focusedStatus = axWindow.setBoolAttribute(kAXFocusedAttribute as CFString, to: true)
+        let raiseStatus = axWindow.performAction(kAXRaiseAction as CFString)
+
+        let mainOk = mainStatus == .success || mainStatus == .attributeUnsupported
+        let focusedOk = focusedStatus == .success || focusedStatus == .attributeUnsupported
+        let success = mainOk && focusedOk && raiseStatus == .success
+
+        if !success {
+            logger.debug("Failed to focus window: main=\(mainStatus.rawValue), focused=\(focusedStatus.rawValue), raise=\(raiseStatus.rawValue)")
+        }
+
+        return success
+    }
+
+    private func updateFocusOrder(for window: WindowInfo) {
         let identifier = WindowIdentifier(pid: window.pid, windowId: window.windowId)
         windowFocusOrder.removeAll { $0 == identifier }
         windowFocusOrder.insert(identifier, at: 0)
